@@ -45,9 +45,9 @@ The plugin hooks into 6 Claude Code lifecycle events. Every user prompt triggers
   SESSION END
   ───────────
   ┌──────────┐     ┌──────────────────────┐     ┌──────────────────────┐
-  │  Stop    │────▶│ Agent subagent reads │────▶│ Write AI summary to  │
-  │ (agent   │     │ transcript JSONL via │     │ .memsearch/memory/   │
-  │  hook)   │     │ $ARGUMENTS           │     │ YYYY-MM-DD.md        │
+  │  Stop    │────▶│ Agent subagent runs  │────▶│ Write AI summary to  │
+  │ (agent   │     │ parse-transcript.sh  │     │ .memsearch/memory/   │
+  │  hook)   │     │ (truncate + format)  │     │ YYYY-MM-DD.md        │
   └──────────┘     └──────────────────────┘     └──────────┬───────────┘
                                                            │
   ┌──────────────┐                                         │
@@ -78,15 +78,21 @@ The **Stop** hook is the only one that uses an agent hook (subagent with AI capa
 - **PreCompact / SessionEnd** only need `memsearch index`, no AI reasoning required
 - **Stop** fires once per session and needs AI to read the full transcript and generate a meaningful summary — a bash script can't do that
 
-The agent hook subagent receives the transcript path via `$ARGUMENTS`, reads the JSONL file, and writes a structured summary. Zero extra LLM API calls — it uses Claude's built-in subagent capability.
+The agent hook subagent receives the transcript path via `$ARGUMENTS`, then calls `parse-transcript.sh` to get a pre-processed text version. The subagent only needs to read the clean output and write a summary. Zero extra LLM API calls — it uses Claude's built-in subagent capability.
 
 ### Long session protection
 
-The Stop agent hook includes truncation rules for long conversations:
+Transcript parsing is handled by `parse-transcript.sh` — a deterministic bash script, not AI prompt instructions. The subagent calls it and receives clean, bounded output.
 
-- Each message exceeding **500 characters** is truncated to its **last 500 chars** (the tail is more informative — final decisions, conclusions, results)
-- Tool call entries are reduced to **tool name + one-line summary** (skip full input/output)
-- If the transcript exceeds **200 lines**, only the **last 200 lines** are processed
+The script applies these rules:
+
+- Each user/assistant message exceeding **500 chars** → truncated to **last 500 chars** (tail is more informative — final decisions, conclusions, results)
+- Tool calls → **tool name + one-line input summary** (skip full input/output)
+- Tool results → **one-line truncated preview**
+- `file-history-snapshot` entries → **skipped entirely**
+- Transcript exceeding **200 lines** → only the **last 200 lines** are processed
+
+Limits are configurable via environment variables: `MEMSEARCH_MAX_LINES` (default 200), `MEMSEARCH_MAX_CHARS` (default 500).
 
 This ensures the 60-second timeout is sufficient even for multi-hour sessions.
 
