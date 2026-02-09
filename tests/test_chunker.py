@@ -38,12 +38,12 @@ def test_empty_input():
     assert chunks == []
 
 
-def test_chunk_hash_is_deterministic():
+def test_content_hash_is_deterministic():
     md = "# Hello\n\nWorld"
     c1 = chunk_markdown(md, source="a.md")
     c2 = chunk_markdown(md, source="b.md")
-    # Same content -> same hash, even different source
-    assert c1[0].chunk_hash == c2[0].chunk_hash
+    # Same content -> same content_hash, even different source
+    assert c1[0].content_hash == c2[0].content_hash
 
 
 def test_large_section_splitting():

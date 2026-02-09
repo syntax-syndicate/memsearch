@@ -19,12 +19,27 @@ class Chunk:
     heading_level: int  # 0 for preamble
     start_line: int
     end_line: int
-    chunk_hash: str = field(default="", repr=False)
+    content_hash: str = field(default="", repr=False)
 
     def __post_init__(self) -> None:
-        if not self.chunk_hash:
+        if not self.content_hash:
             h = hashlib.sha256(self.content.encode()).hexdigest()[:16]
-            object.__setattr__(self, "chunk_hash", h)
+            object.__setattr__(self, "content_hash", h)
+
+
+def compute_chunk_id(
+    source: str,
+    start_line: int,
+    end_line: int,
+    content_hash: str,
+    model: str,
+) -> str:
+    """Compute a composite chunk ID matching OpenClaw's format.
+
+    ``hash(source:path:startLine:endLine:contentHash:model)``
+    """
+    raw = f"markdown:{source}:{start_line}:{end_line}:{content_hash}:{model}"
+    return hashlib.sha256(raw.encode()).hexdigest()[:16]
 
 
 def chunk_markdown(

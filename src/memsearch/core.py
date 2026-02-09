@@ -11,7 +11,7 @@ from typing import Any, Callable, TYPE_CHECKING
 if TYPE_CHECKING:
     from .watcher import FileWatcher
 
-from .chunker import Chunk, chunk_markdown
+from .chunker import Chunk, chunk_markdown, compute_chunk_id
 from .embeddings import EmbeddingProvider, get_provider
 from .flush import flush_chunks
 from .scanner import ScannedFile, scan_paths
@@ -100,12 +100,17 @@ class MemSearch:
         source = str(f.path)
         text = f.path.read_text(encoding="utf-8")
         chunks = chunk_markdown(text, source=source)
+        model = self._embedder.model_name
 
-        new_hashes = {c.chunk_hash for c in chunks}
-        old_hashes = self._store.hashes_by_source(source)
+        # Compute composite chunk IDs (matching OpenClaw format)
+        chunk_ids = {
+            compute_chunk_id(c.source, c.start_line, c.end_line, c.content_hash, model)
+            for c in chunks
+        }
+        old_ids = self._store.hashes_by_source(source)
 
         # Delete stale chunks that are no longer in the file
-        stale = old_hashes - new_hashes
+        stale = old_ids - chunk_ids
         if stale:
             self._store.delete_by_hashes(list(stale))
 
@@ -113,8 +118,12 @@ class MemSearch:
             return 0
 
         if not force:
-            # Only embed chunks whose hash doesn't already exist
-            chunks = [c for c in chunks if c.chunk_hash not in old_hashes]
+            # Only embed chunks whose ID doesn't already exist
+            chunks = [
+                c for c in chunks
+                if compute_chunk_id(c.source, c.start_line, c.end_line, c.content_hash, model)
+                not in old_ids
+            ]
             if not chunks:
                 return 0
 
@@ -124,14 +133,19 @@ class MemSearch:
         if not chunks:
             return 0
 
+        model = self._embedder.model_name
         contents = [c.content for c in chunks]
         embeddings = await self._embedder.embed(contents)
 
         records: list[dict[str, Any]] = []
         for i, chunk in enumerate(chunks):
+            chunk_id = compute_chunk_id(
+                chunk.source, chunk.start_line, chunk.end_line,
+                chunk.content_hash, model,
+            )
             records.append(
                 {
-                    "chunk_hash": chunk.chunk_hash,
+                    "chunk_hash": chunk_id,
                     "embedding": embeddings[i],
                     "content": chunk.content,
                     "source": chunk.source,
