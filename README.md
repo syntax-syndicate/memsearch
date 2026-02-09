@@ -12,8 +12,8 @@ memsearch turns your markdown files and AI session logs into a searchable long-t
 
 1. **Scan** — Recursively discover `.md` / `.markdown` files from the directories you point it at.
 2. **Chunk** — Split each document into semantically meaningful sections by headings and paragraph boundaries.
-3. **Embed** — Convert each chunk into a vector embedding (via OpenAI, Google, Voyage, Ollama, or local models). Embeddings are cached in SQLite so unchanged content is never re-embedded.
-4. **Store** — Persist the vectors in Milvus. Use Milvus Lite locally with zero config, or connect to a Milvus Server / Zilliz Cloud cluster for production scale.
+3. **Dedup** — Each chunk gets a SHA-256 content hash (`chunk_hash`) used as the Milvus primary key. Before embedding, memsearch checks which hashes already exist — unchanged content is never re-embedded.
+4. **Embed & Store** — New chunks are converted to vector embeddings (via OpenAI, Google, Voyage, Ollama, or local models) and upserted into Milvus. Use Milvus Lite locally with zero config, or connect to a Milvus Server / Zilliz Cloud cluster for production scale.
 5. **Search** — Given a natural-language query, embed it and perform a cosine-similarity search across all stored chunks. Results come back ranked by relevance with source file, heading, and content.
 6. **Flush** — Optionally compress accumulated chunks into a condensed summary using an LLM (OpenAI / Anthropic / Gemini), then re-index the summary. This keeps your memory store lean while preserving key insights — much like how human memory consolidates during sleep.
 
@@ -56,7 +56,7 @@ export VOYAGE_API_KEY="..."
 export ANTHROPIC_API_KEY="..."         # for flush with Anthropic
 ```
 
-Data is stored locally at `~/.memsearch/` by default (Milvus Lite database + SQLite embedding cache). See [Milvus Backend Configuration](#milvus-backend-configuration) for remote / cloud options.
+Data is stored locally at `~/.memsearch/milvus.db` by default (Milvus Lite). See [Milvus Backend Configuration](#milvus-backend-configuration) for remote / cloud options.
 
 ## CLI Usage
 
@@ -196,22 +196,21 @@ ms = MemSearch(
 
 Zero-ops, auto-scaling managed service. Get your free cluster at [cloud.zilliz.com](https://cloud.zilliz.com). Great for production deployments and when you don't want to manage infrastructure.
 
-#### Custom cache path
+#### Custom local database path
 
 ```python
 ms = MemSearch(
     paths=["./docs/"],
-    milvus_uri="./my_project.db",
-    cache_path="./my_cache.db",             # SQLite embedding cache location
+    milvus_uri="./my_project.db",           # Milvus Lite file in current directory
 )
 ```
 
 ## Architecture
 
 ```
-Markdown files ──► Scanner ──► Chunker ──► Embedder ──► Milvus (vectors)
+Markdown files ──► Scanner ──► Chunker ──► Milvus (check chunk_hash exists?)
                                               │
-                                     SQLite cache (avoids re-embedding)
+                                    new chunks only ──► Embedder ──► Milvus upsert
 
 Query ──► Embedder ──► Milvus search ──► Results
 
@@ -223,8 +222,7 @@ Flush ──► Retrieve chunks ──► LLM summarize ──► Re-index summa
 | **Scanner** | Recursively finds `.md` / `.markdown` files, skips hidden files |
 | **Chunker** | Splits markdown by headings, large sections split at paragraph boundaries |
 | **Embeddings** | Pluggable providers: OpenAI, Google, Voyage, Ollama, sentence-transformers |
-| **Store** | Milvus for vector storage — Milvus Lite (local), Milvus Server, or Zilliz Cloud |
-| **Cache** | SQLite cache keyed by `(content_hash, model)` — unchanged content is never re-embedded |
+| **Store** | Milvus for vector storage — Milvus Lite (local), Milvus Server, or Zilliz Cloud. Dedup by `chunk_hash` primary key — unchanged content is never re-embedded |
 | **Watcher** | Watchdog-based file monitor for auto-indexing on changes |
 | **Session** | Parses Claude JSONL session logs into searchable chunks |
 | **Flush** | Compresses chunks into summaries via LLM (OpenAI / Anthropic / Gemini) |
