@@ -192,7 +192,7 @@ class MemSearch:
             ``score``, and other metadata.
         """
         embeddings = await self._embedder.embed([query])
-        return self._store.search(embeddings[0], top_k=top_k)
+        return self._store.search(embeddings[0], query_text=query, top_k=top_k)
 
     # ------------------------------------------------------------------
     # Flush (compress memories)

@@ -7,3 +7,5 @@ build/
 *.db
 .pytest_cache/
 .ruff_cache/
+.memsearch/
+CONTEXT.md

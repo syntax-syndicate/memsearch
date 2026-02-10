@@ -8,6 +8,7 @@
 
 ### ✨ Why memsearch?
 
+- 🧩 **Claude Code plugin** — Drop-in plugin gives Claude persistent memory across sessions, fully automatic via hooks
 - 🐾 **OpenClaw-compatible** — Same two-layer memory architecture (`MEMORY.md` + daily `memory/YYYY-MM-DD.md` logs), same chunking strategy, same composite chunk ID format
 - 🔌 **Pluggable embeddings** — OpenAI, Google, Voyage, Ollama, or fully local sentence-transformers
 - 🗄️ **Flexible storage** — Milvus Lite (zero config local file) → Milvus Server → Zilliz Cloud
@@ -53,6 +54,26 @@ memsearch follows the same memory philosophy as [OpenClaw](https://github.com/op
 ```
 
 🔒 The entire pipeline runs locally by default — your data never leaves your machine unless you choose a remote Milvus backend or a cloud embedding provider.
+
+## 🧩 Claude Code Plugin
+
+memsearch ships with a **Claude Code plugin** that gives Claude automatic persistent memory — no commands to learn, fully automatic via hooks.
+
+```bash
+claude --plugin-dir ./plugin
+```
+
+```
+  Session start ──▶ start memsearch watch (singleton) ──▶ inject recent memories
+                           │
+  User prompt ──▶ memsearch search ──▶ inject relevant memories
+                           │
+  Claude stops ──▶ agent hook ──▶ AI summary ──▶ write .memsearch/memory/YYYY-MM-DD.md
+                           │                              │
+  Session end ──▶ stop watch            watch auto-indexes ◀┘
+```
+
+Memories are transparent markdown files — human-readable, git-friendly, rebuildable. See **[plugin/README.md](plugin/README.md)** for the full architecture diagram, hook details, and comparison with claude-mem.
 
 ## 📦 Installation
 

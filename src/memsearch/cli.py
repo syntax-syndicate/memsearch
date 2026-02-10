@@ -164,6 +164,192 @@ def search(
 
 
 @cli.command()
+@click.argument("chunk_hash")
+@click.option("--section/--no-section", default=True, help="Show full heading section (default).")
+@click.option("--lines", "-n", default=None, type=int, help="Show N lines before/after instead of full section.")
+@click.option("--json-output", "-j", is_flag=True, help="Output as JSON.")
+@_common_options
+def expand(
+    chunk_hash: str,
+    section: bool,
+    lines: int | None,
+    json_output: bool,
+    provider: str | None,
+    model: str | None,
+    collection: str | None,
+    milvus_uri: str | None,
+    milvus_token: str | None,
+) -> None:
+    """Expand a memory chunk to show full context.
+
+    Look up CHUNK_HASH in the index, then read the source markdown file
+    to return the surrounding context (full heading section by default).
+    """
+    from .store import MilvusStore
+
+    cfg = resolve_config(_build_cli_overrides(
+        provider=provider, model=model, collection=collection,
+        milvus_uri=milvus_uri, milvus_token=milvus_token,
+    ))
+    store = MilvusStore(
+        uri=cfg.milvus.uri,
+        token=cfg.milvus.token or None,
+        collection=cfg.milvus.collection,
+    )
+    try:
+        chunks = store.query(filter_expr=f'chunk_hash == "{chunk_hash}"')
+        if not chunks:
+            click.echo(f"Chunk not found: {chunk_hash}", err=True)
+            sys.exit(1)
+
+        chunk = chunks[0]
+        source = chunk["source"]
+        start_line = chunk["start_line"]
+        end_line = chunk["end_line"]
+        heading = chunk.get("heading", "")
+        heading_level = chunk.get("heading_level", 0)
+
+        source_path = Path(source)
+        if not source_path.exists():
+            click.echo(f"Source file not found: {source}", err=True)
+            sys.exit(1)
+
+        all_lines = source_path.read_text(encoding="utf-8").splitlines()
+
+        if lines is not None:
+            # Show N lines before/after the chunk
+            ctx_start = max(0, start_line - 1 - lines)
+            ctx_end = min(len(all_lines), end_line + lines)
+            expanded = "\n".join(all_lines[ctx_start:ctx_end])
+            expanded_start = ctx_start + 1
+            expanded_end = ctx_end
+        else:
+            # Show full section under the same heading
+            expanded, expanded_start, expanded_end = _extract_section(
+                all_lines, start_line, heading_level,
+            )
+
+        # Parse any anchor comments in the expanded text
+        import re
+        anchor_match = re.search(
+            r"<!--\s*session:(\S+)\s+turn:(\S+)\s+transcript:(\S+)\s*-->",
+            expanded,
+        )
+        anchor = {}
+        if anchor_match:
+            anchor = {
+                "session": anchor_match.group(1),
+                "turn": anchor_match.group(2),
+                "transcript": anchor_match.group(3),
+            }
+
+        if json_output:
+            result = {
+                "chunk_hash": chunk_hash,
+                "source": source,
+                "heading": heading,
+                "start_line": expanded_start,
+                "end_line": expanded_end,
+                "content": expanded,
+            }
+            if anchor:
+                result["anchor"] = anchor
+            click.echo(json.dumps(result, indent=2, ensure_ascii=False))
+        else:
+            click.echo(f"Source: {source} (lines {expanded_start}-{expanded_end})")
+            if heading:
+                click.echo(f"Heading: {heading}")
+            if anchor:
+                click.echo(f"Session: {anchor['session']}  Turn: {anchor['turn']}")
+                click.echo(f"Transcript: {anchor['transcript']}")
+            click.echo(f"\n{expanded}")
+    finally:
+        store.close()
+
+
+def _extract_section(
+    all_lines: list[str], start_line: int, heading_level: int,
+) -> tuple[str, int, int]:
+    """Extract the full section containing the chunk.
+
+    Walks backward to find the section heading, then forward to the next
+    heading of equal or higher level (or EOF).
+    """
+    # Find section start — walk backward to the heading
+    section_start = start_line - 1  # 0-indexed
+    if heading_level > 0:
+        for i in range(start_line - 2, -1, -1):
+            line = all_lines[i]
+            if line.startswith("#"):
+                level = len(line) - len(line.lstrip("#"))
+                if level <= heading_level:
+                    section_start = i
+                    break
+
+    # Find section end — walk forward to the next heading of same or higher level
+    section_end = len(all_lines)
+    if heading_level > 0:
+        for i in range(start_line, len(all_lines)):
+            line = all_lines[i]
+            if line.startswith("#"):
+                level = len(line) - len(line.lstrip("#"))
+                if level <= heading_level:
+                    section_end = i
+                    break
+
+    content = "\n".join(all_lines[section_start:section_end])
+    return content, section_start + 1, section_end
+
+
+@cli.command()
+@click.argument("jsonl_path", type=click.Path(exists=True))
+@click.option("--turn", "-t", default=None, help="Target turn UUID (prefix match).")
+@click.option("--context", "-c", "ctx", default=3, type=int, help="Number of turns before/after target.")
+@click.option("--json-output", "-j", is_flag=True, help="Output as JSON.")
+def transcript(
+    jsonl_path: str,
+    turn: str | None,
+    ctx: int,
+    json_output: bool,
+) -> None:
+    """View original conversation turns from a JSONL transcript.
+
+    Parse JSONL_PATH and display conversation turns. If --turn is given,
+    show context around that specific turn; otherwise show an index of
+    all user turns.
+    """
+    from .transcript import (
+        parse_transcript,
+        find_turn_context,
+        format_turns,
+        format_turn_index,
+        turns_to_dicts,
+    )
+
+    turns = parse_transcript(jsonl_path)
+    if not turns:
+        click.echo("No conversation turns found.")
+        return
+
+    if turn:
+        context_turns, highlight = find_turn_context(turns, turn, context=ctx)
+        if not context_turns:
+            click.echo(f"Turn not found: {turn}", err=True)
+            sys.exit(1)
+        if json_output:
+            click.echo(json.dumps(turns_to_dicts(context_turns), indent=2, ensure_ascii=False))
+        else:
+            click.echo(f"Showing {len(context_turns)} turns around {turn[:12]}:\n")
+            click.echo(format_turns(context_turns, highlight_idx=highlight))
+    else:
+        if json_output:
+            click.echo(json.dumps(turns_to_dicts(turns), indent=2, ensure_ascii=False))
+        else:
+            click.echo(f"All turns ({len(turns)}):\n")
+            click.echo(format_turn_index(turns))
+
+
+@cli.command()
 @click.argument("paths", nargs=-1, required=True, type=click.Path(exists=True))
 @_common_options
 @click.option("--debounce-ms", default=None, type=int, help="Debounce delay in ms.")
