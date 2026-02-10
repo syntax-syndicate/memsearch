@@ -8,7 +8,7 @@
 
 ### ✨ Why memsearch?
 
-- 🧩 **Claude Code plugin** — Drop-in plugin gives Claude persistent memory across sessions, fully automatic via hooks
+- 🧩 **Claude Code plugin included** — Ready-to-use plugin gives Claude persistent memory across sessions — see memsearch in action instantly
 - 🐾 **OpenClaw-compatible** — Same two-layer memory architecture (`MEMORY.md` + daily `memory/YYYY-MM-DD.md` logs), same chunking strategy, same composite chunk ID format
 - 🔌 **Pluggable embeddings** — OpenAI, Google, Voyage, Ollama, or fully local sentence-transformers
 - 🗄️ **Flexible storage** — Milvus Lite (zero config local file) → Milvus Server → Zilliz Cloud
@@ -57,10 +57,14 @@ memsearch follows the same memory philosophy as [OpenClaw](https://github.com/op
 
 ## 🧩 Claude Code Plugin
 
-memsearch ships with a **Claude Code plugin** that gives Claude automatic persistent memory — no commands to learn, fully automatic via hooks.
+memsearch ships with a ready-to-use **[Claude Code plugin](ccplugin/README.md)** — a real-world application built on top of memsearch that gives Claude **automatic persistent memory** across sessions. No commands to learn, no manual saving — just install and go.
+
+This is the fastest way to see memsearch in action: every session is automatically summarized to markdown, every prompt triggers a semantic search for relevant context, and a background watcher keeps the vector index in sync.
 
 ```bash
-claude --plugin-dir ./plugin
+# Install memsearch, then launch Claude with the plugin
+pip install memsearch
+claude --plugin-dir ./ccplugin
 ```
 
 ```
@@ -68,12 +72,12 @@ claude --plugin-dir ./plugin
                            │
   User prompt ──▶ memsearch search ──▶ inject relevant memories
                            │
-  Claude stops ──▶ agent hook ──▶ AI summary ──▶ write .memsearch/memory/YYYY-MM-DD.md
+  Claude stops ──▶ haiku summary ──▶ write .memsearch/memory/YYYY-MM-DD.md
                            │                              │
   Session end ──▶ stop watch            watch auto-indexes ◀┘
 ```
 
-Memories are transparent markdown files — human-readable, git-friendly, rebuildable. See **[plugin/README.md](plugin/README.md)** for the full architecture diagram, hook details, and comparison with claude-mem.
+Under the hood: 4 shell hooks + 1 watch process, all calling the `memsearch` CLI. Memories are transparent `.md` files — human-readable, git-friendly, rebuildable. See **[ccplugin/README.md](ccplugin/README.md)** for the full architecture, hook details, progressive disclosure model, and comparison with claude-mem.
 
 ## 📦 Installation
 

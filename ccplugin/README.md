@@ -3,7 +3,7 @@
 **Automatic persistent memory for Claude Code.** No commands to learn, no manual saving — just install the plugin and Claude remembers what you worked on across sessions.
 
 ```bash
-claude --plugin-dir /path/to/memsearch/plugin
+claude --plugin-dir /path/to/memsearch/ccplugin
 ```
 
 ## 💡 Design Principles
@@ -26,13 +26,13 @@ pip install memsearch
 memsearch config init
 
 # 3. Launch Claude with the plugin
-claude --plugin-dir /path/to/memsearch/plugin
+claude --plugin-dir /path/to/memsearch/ccplugin
 
 # 4. Have a conversation, then exit. Check your memories:
 cat .memsearch/memory/$(date +%Y-%m-%d).md
 
 # 5. Start a new session — Claude remembers!
-claude --plugin-dir /path/to/memsearch/plugin
+claude --plugin-dir /path/to/memsearch/ccplugin
 ```
 
 ## ⚙️ How It Works
@@ -192,7 +192,7 @@ Each file contains session summaries in plain markdown:
 ## 📂 Plugin Files
 
 ```
-plugin/
+ccplugin/
 ├── .claude-plugin/
 │   └── plugin.json              # Plugin manifest
 └── hooks/
