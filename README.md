@@ -23,13 +23,13 @@ memsearch follows the same memory philosophy as [OpenClaw](https://github.com/op
 
 ```
                           ┌─────────────────────────────────────────────┐
-                          │            memsearch pipeline               │
+                          │             memsearch pipeline              │
                           └─────────────────────────────────────────────┘
 
   ┌──────────┐     ┌──────────┐     ┌──────────┐     ┌────────────────┐
   │ Markdown │────▶│ Scanner  │────▶│ Chunker  │────▶│ Dedup          │
-  │ files    │     │          │     │(by heading│     │(chunk_hash PK) │
-  └──────────┘     └──────────┘     │& paragr.)│     └───────┬────────┘
+  │ files    │     │          │     │(heading, │     │(chunk_hash PK) │
+  └──────────┘     └──────────┘     │paragraph)│     └───────┬────────┘
                                     └──────────┘             │
   MEMORY.md                                           new chunks only
   memory/2026-02-09.md                                       │
@@ -39,8 +39,8 @@ memsearch follows the same memory philosophy as [OpenClaw](https://github.com/op
                                                      │(OpenAI/local)│     │ upsert│
                                                      └──────────────┘     └───┬───┘
                                                                               │
-  ┌──────────────────────────────────────────────────────────────────────┐     │
-  │ Search:  query ──▶ embed ──▶ cosine similarity ──▶ top-K results   │◀────┘
+  ┌──────────────────────────────────────────────────────────────────────┐    │
+  │ Search:  query ──▶ embed ──▶ cosine similarity ──▶ top-K results   │◀───┘
   └──────────────────────────────────────────────────────────────────────┘
 
   ┌──────────────────────────────────────────────────────────────────────┐
@@ -73,8 +73,8 @@ claude --plugin-dir ./ccplugin
   User prompt ──▶ memsearch search ──▶ inject relevant memories
                            │
   Claude stops ──▶ haiku summary ──▶ write .memsearch/memory/YYYY-MM-DD.md
-                           │                              │
-  Session end ──▶ stop watch            watch auto-indexes ◀┘
+                           │                                │
+  Session end ──▶ stop watch              watch auto-indexes ◀┘
 ```
 
 Under the hood: 4 shell hooks + 1 watch process, all calling the `memsearch` CLI. Memories are transparent `.md` files — human-readable, git-friendly, rebuildable. See **[ccplugin/README.md](ccplugin/README.md)** for the full architecture, hook details, progressive disclosure model, and comparison with claude-mem.
