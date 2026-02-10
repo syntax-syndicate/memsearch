@@ -95,6 +95,41 @@ def test_upsert_is_idempotent(store: MilvusStore):
     assert hashes.count("same_hash") == 1
 
 
+def test_hybrid_search(store: MilvusStore):
+    chunks = [
+        {
+            "embedding": [1.0, 0.0, 0.0, 0.0],
+            "content": "Redis caching with TTL and LRU eviction policy",
+            "source": "test.md",
+            "heading": "Caching",
+            "chunk_hash": "h_redis",
+            "heading_level": 1,
+            "start_line": 1,
+            "end_line": 5,
+        },
+        {
+            "embedding": [0.0, 1.0, 0.0, 0.0],
+            "content": "PostgreSQL database migration and schema changes",
+            "source": "test.md",
+            "heading": "Database",
+            "chunk_hash": "h_pg",
+            "heading_level": 1,
+            "start_line": 6,
+            "end_line": 10,
+        },
+    ]
+    store.upsert(chunks)
+
+    # Hybrid search: BM25 should boost the Redis result for keyword "Redis"
+    results = store.search(
+        [0.5, 0.5, 0.0, 0.0],  # ambiguous dense vector
+        query_text="Redis caching",
+        top_k=2,
+    )
+    assert len(results) >= 1
+    assert results[0]["content"].startswith("Redis")
+
+
 def test_drop(store: MilvusStore):
     chunk = {
         "embedding": [1.0, 0.0, 0.0, 0.0],

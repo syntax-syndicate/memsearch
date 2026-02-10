@@ -66,26 +66,6 @@ The plugin hooks into 4 Claude Code lifecycle events. A singleton `memsearch wat
 | **Stop** | agent | 60s | Parse transcript → AI summary → write to daily `.md` log |
 | **SessionEnd** | command | 10s | Stop the `memsearch watch` process |
 
-### Design: watch as single source of indexing
-
-The key architectural decision: **indexing is managed in exactly one place** — the `memsearch watch` background process started at SessionStart.
-
-Previous designs had `memsearch index` scattered across PostToolUse, PreCompact, SessionEnd, and Stop hooks. This was redundant and could cause race conditions. Now:
-
-- **Hooks only write `.md` files** — they never call `memsearch index`
-- **Watch detects changes and indexes** — with 1500ms debounce, dedup built in
-- **Singleton via PID file** — `.memsearch/.watch.pid` ensures one watcher per project, even across multiple concurrent Claude sessions
-
-### Why Stop uses an agent hook
-
-The **Stop** hook is the only one that uses an agent hook (subagent with AI capabilities). All other hooks are simple command (bash) hooks. Here's why:
-
-- **UserPromptSubmit** only needs `memsearch search` — no AI reasoning
-- **SessionStart / SessionEnd** only need to start/stop watch + read files — no AI reasoning
-- **Stop** needs AI to read a conversation transcript and generate a meaningful summary — a bash script can't do that
-
-The agent hook subagent calls `parse-transcript.sh` to get pre-processed text, then writes a summary. Zero extra LLM API calls — it uses Claude's built-in subagent capability.
-
 ### Long session protection
 
 Transcript parsing is handled by `parse-transcript.sh` — a deterministic bash script, not AI prompt instructions. The subagent calls it and receives clean, bounded output.
