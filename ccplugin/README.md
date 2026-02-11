@@ -12,7 +12,7 @@ memsearch follows two core philosophies:
 
 **🔧 Native to Claude Code** — built entirely on Claude Code's own primitives: **Hooks** for lifecycle events, **CLI** for tool access, and **Agent** for autonomous decisions. No MCP servers, no sidecar services, no extra network round-trips. Everything runs locally as shell scripts and a Python CLI, keeping latency low and context window clean.
 
-**📝 Markdown as single source of truth** — inspired by [OpenClaw's memory architecture](https://docs.openclaw.ai/concepts/memory). All knowledge lives in plain `.md` files — human-readable, `git`-friendly, trivially portable. The vector index (Milvus) is a **derived cache** that can be rebuilt from markdown at any time. No opaque databases, no binary blobs, no vendor lock-in.
+**📝 Markdown as single source of truth** — the same architecture that powers [OpenClaw's memory system](https://docs.openclaw.ai/concepts/memory). All knowledge lives in plain `.md` files — human-readable, `git`-friendly, trivially portable. The vector index (Milvus) is a **derived cache** that can be rebuilt from markdown at any time. No opaque databases, no binary blobs, no vendor lock-in.
 
 The result: a memory system that's **simple enough to understand in 5 minutes**, yet powerful enough for production use with hybrid search (dense + BM25) and three-layer progressive disclosure.
 

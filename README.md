@@ -1,21 +1,22 @@
 # 🧠 memsearch
 
-**Give your AI agents persistent memory.** Semantic memory search for markdown knowledge bases — index your markdown files, then search them using natural language.
+**Bring [OpenClaw](https://github.com/openclaw/openclaw)'s memory to any agent.** `pip install memsearch` and go.
 
-🦞🧠 Inspired by **[OpenClaw](https://github.com/openclaw/openclaw)** — one of the hottest open-source AI assistant projects, and for good reason: its memory system is *brilliantly* designed. **Markdown as single source of truth** — human-readable, `git`-friendly, zero vendor lock-in. Vector search is just a derived index, rebuildable anytime. This elegant simplicity is what makes it production-ready.
+[OpenClaw](https://github.com/openclaw/openclaw) has one of the best-designed memory systems in the open-source AI space: **markdown as single source of truth** — human-readable, `git`-friendly, zero vendor lock-in. Vector search is just a derived index, rebuildable anytime. Two-layer architecture (`MEMORY.md` + daily `memory/YYYY-MM-DD.md` logs), content-hash dedup, and a flush cycle that compresses old memories with LLM summarization. It's elegant, practical, and production-ready.
 
-> 💡 **memsearch = OpenClaw's 🦞 memory brain 🧠, packaged for everyone.** We extracted this battle-tested memory layer into a standalone library — `pip install` and go. Same markdown-first architecture, same smart chunking and dedup, now pluggable into *any* agent framework and backed by [Milvus](https://milvus.io/) (from local Milvus Lite to fully managed Zilliz Cloud).
+**The problem?** That memory layer lives inside OpenClaw's monorepo. If you want it in your own agent, you're out of luck.
+
+> 💡 **memsearch extracts OpenClaw's memory brain into a standalone library** — same markdown-first architecture, same smart chunking, same composite chunk ID format. Now pluggable into *any* agent framework and backed by [Milvus](https://milvus.io/) (from local Milvus Lite to fully managed Zilliz Cloud). See it in action with the included **[Claude Code plugin](ccplugin/README.md)**.
 
 ### ✨ Why memsearch?
 
-- 🧩 **Claude Code plugin included** — Ready-to-use plugin gives Claude persistent memory across sessions — see memsearch in action instantly
-- 🦞 **OpenClaw-compatible** — Same two-layer memory architecture (`MEMORY.md` + daily `memory/YYYY-MM-DD.md` logs), same chunking strategy, same composite chunk ID format
+- 🦞 **OpenClaw's memory, everywhere** — Same two-layer architecture, same chunking strategy, same chunk ID format — extracted into a standalone `pip install`
 - 🔌 **Pluggable embeddings** — OpenAI, Google, Voyage, Ollama, or fully local sentence-transformers
 - 🗄️ **Flexible storage** — Milvus Lite (zero config local file) → Milvus Server → Zilliz Cloud
 - ⚡ **Smart dedup** — SHA-256 content hashing means unchanged content is never re-embedded
 - 🔄 **Live sync** — File watcher auto-indexes on changes, deletes stale chunks when files are removed
 - 🧹 **Memory flush** — LLM-powered summarization compresses old memories, just like OpenClaw's flush cycle
-- 📦 **pip install and go** — No OpenClaw fork needed, works with any agent
+- 🧩 **Claude Code plugin included** — A real-world example: **[ccplugin/](ccplugin/README.md)** gives Claude persistent memory across sessions with zero config
 
 ## 🔍 How It Works
 
@@ -57,9 +58,7 @@ memsearch follows the same memory philosophy as [OpenClaw](https://github.com/op
 
 ## 🧩 Claude Code Plugin
 
-memsearch ships with a ready-to-use **[Claude Code plugin](ccplugin/README.md)** — a real-world application built on top of memsearch that gives Claude **automatic persistent memory** across sessions. No commands to learn, no manual saving — just install and go.
-
-This is the fastest way to see memsearch in action: every session is automatically summarized to markdown, every prompt triggers a semantic search for relevant context, and a background watcher keeps the vector index in sync.
+memsearch ships with a **[Claude Code plugin](ccplugin/README.md)** — a real-world example of OpenClaw's memory running outside OpenClaw. It gives Claude **automatic persistent memory** across sessions: every session is summarized to markdown, every prompt triggers a semantic search, and a background watcher keeps the index in sync. No commands to learn, no manual saving — just install and go.
 
 ```bash
 # Install memsearch, then launch Claude with the plugin
